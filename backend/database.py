@@ -57,10 +57,10 @@ DEFAULT_ADMIN_USERNAME = "admin"
 DEFAULT_ADMIN_PASSWORD = "admin123"
 
 # ───────────────────────────── Motor / Sesión ─────────────────────────────
-DB_PATH = Path(
-    os.environ.get("BANCA_DB_PATH") or (Path(__file__).resolve().parent / "banca_hipica.db")
-)
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set")
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(
     bind=engine, autoflush=False, autocommit=False, expire_on_commit=False
 )
