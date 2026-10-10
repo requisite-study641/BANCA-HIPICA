@@ -22,8 +22,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Importación de routers y base de datos local del proyecto
-from . import database
-from .routers import auth, duel_types, races, duels, payments, audit
+import database, security, duel_types, races, duels, payments, audit
 
 # Configuración de logging estructurado para producción
 LOGGING_CONFIG = {
