@@ -1,0 +1,1 @@
+"""Banca Hípica P2P — backend FastAPI (paquete `backend`)."""

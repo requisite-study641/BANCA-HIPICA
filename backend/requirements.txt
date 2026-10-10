@@ -1,0 +1,10 @@
+# Banca Hípica P2P — dependencias del backend (instalar en un entorno virtual).
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+gunicorn>=20.0.0
+sqlalchemy>=1.4.50
+pydantic>=1.10.0
+python-multipart>=0.0.9   # Necesario para POST /admin/races/upload (multipart/form-data)
+httpx>=0.27.0             # Requerido por fastapi.testclient (pruebas E2E en tests/)
+openpyxl>=3.1.0           # Carga nativa de cartelera en Excel .xlsx/.xlsm (backend/parsers.py)
+xlrd>=2.0.1               # Carga nativa de cartelera en Excel .xls legado (backend/parsers.py)

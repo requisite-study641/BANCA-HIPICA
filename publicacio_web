@@ -1,0 +1,295 @@
+# Guía de Despliegue Público para Banca Hípica P2P
+
+Este documento describe el proceso paso a paso para desplegar la aplicación Banca Hípica P2P (SPA con backend FastAPI y frontend vanilla) de forma pública, siguiendo las mejores prácticas de seguridad, escalabilidad y mantenibilidad.
+
+## Tabla de Contenidos
+1. [Preparación del Backend](#1-preparación-del-backend)
+2. [Preparación del Frontend](#2-preparación-del-frontend)
+3. [Elección de la Plataforma de Hosting](#3-elección-de-la-plataforma-de-hosting)
+4. [Pasos de Despliegue](#4-pasos-de-despliegue)
+5. [Verificación Post-Despliegue](#5-verificación-post-despliegue)
+6. [Consideraciones Adicionales](#6-consideraciones-adicionales)
+7. [Archivos Clave a Verificar](#7-archivos-clave-a-verificar)
+
+---
+
+## 1. Preparación del Backend
+
+### 1.1 Adaptar para producción
+- Asegurarse de que `backend/main.py` use un servidor ASGI adecuado para producción (ej. Uvicorn con workers mediante Gunicorn).
+- Configurar variables de entorno para rutas críticas:
+  - `BANCA_DB_PATH`: Ruta al archivo SQLite (en producción, usar un volumen persistente).
+  - Otras variables configurables: `FEE_PERCENTAGE`, `DEFAULT_ADMIN_USERNAME`, etc.
+- Verificar la configuración de CORS en `backend/main.py` para permitir el dominio del frontend futuro.
+### 1.1 Adaptar para producción
+- Asegurarse de que `backend/main.py` use un servidor ASGI adecuado para producción (ej. Uvicorn con workers mediante Gunicorn).
+- **Cambios específicos en main.py para producción:**
+  - Desactivar cualquier modo de desarrollo como `--reload` o `debug=True`
+  - Configurar logging estructurado (ej. usando `logging.config.dictConfig`) para salida a stdout/stderr
+  - Asegurar que los manejadores de excepción no expongan traces o detalles internos al cliente
+  - Configurar middleware de seguridad como encabezados HTTP seguros (X-Content-Type-Options, X-Frame-Options, etc.)
+  - Establecer límites apropiados para tamaño de request, timeout de conexión, y rate limiting si es necesario
+  - Verificar que la conexión a la base de datos use pooling adecuado si se aplica (aunque SQLite tiene limitaciones aquí)
+- **Por qué Gunicorn con workers:** 
+  - Gunicorn administra múltiples procesos de workers, mejorando la tolerancia a fallos y el uso de núcleos CPU
+  - Cada worker ejecuta Uvicorn, manejando conexiones concurrentes de forma asíncrona
+  - Es más estable para cargas sostenidas que Uvicorn ejecutándose directamente
+- **Configuración segura de variables de entorno:**
+  - Nunca almacenar secrets como claves de JWT o credenciales de base de datos en el código
+  - Usar el sistema de variables de entorno de la plataforma de hosting (Render, Railway, etc.)
+  - Para desarrollo local, usar un archivo `.env` que NO se versióne (añadir a `.gitignore`)
+  - Ejemplo de acceso en código: `os.getenv("BANCA_DB_PATH", "./banca_hipica.db")`
+### 1.2 Archivo de requisitos
+- Confirmar que `backend/requirements.txt` incluya:
+  ```
+  fastapi
+  uvicorn[standard]
+  sqlalchemy
+  python-multiparte
+  ```
+- Agregar `gunicorn` para producción con múltiples workers si no está presente.
+- **Explicación detallada de cada dependencia:**
+  - `fastapi`: El framework web moderno, basado en estándares abierto (OpenAPI/Swagger) que proporciona validación automática de datos, documentación interactiva y alto rendimiento basado en Starlette y Pydantic.
+  - `uvicorn[standard]`: El servidor ASGI que sirve la aplicación FastAPI. El extra `[standard]` incluye dependencias recomendadas como `uvicorn[standard]` (que normalmente incluye `watchfiles` para recarga en desarrollo, pero en producción nos enfocamos en el servidor base).
+  - `sqlalchemy`: El ORM (Object-Relational Mapper) que permite interactuar con la base de datos SQLite (u otras bases de datos) usando objetos de Python en lugar de SQL crudo, facilitando operaciones complejas y manteniendo la portabilidad entre diferentes motores de base de datos.
+  - `python-multiparte`: Biblioteca necesaria para manejar correctamente los datos de formularios (application/x-www-form-urlencoded) y subidas de archivos (multipart/form-data), esenciales para endpoints como la carga de carteleras y la creación de usuarios.
+  - `gunicorn`: Servidor WSGI de prefork que administra múltiples procesos de workers. En producción, se usa para lanzar varios workers de Uvicorn, mejorando la concurrencia, el uso de núcleos CPU y la tolerancia a fallos (si un worker falla, los otros siguen funcionando).
+- **Prácticas recomendadas para gestionar dependencias:**
+  - Usar versiones específicas con rangos compatibles para evitar actualizaciones inesperadas que puedan romper la aplicación (ej. `fastapi>=0.95.0,<0.96.0`).
+  - Considerar generar el archivo `requirements.txt` de forma determinista usando `pip freeze > requirements.txt` después de instalar todas las dependencias en un entorno limpio.
+  - Para proyectos más grandes, evaluar herramientas como `pip-tools` (para compilar requirements.in a requirements.txt con hashes) o `poetry` (para gestión completa de dependencias y entornos virtuales).
+  - Siempre revisar las vulnerabilidades de dependencias conocidas usando herramientas como `safety` o `dependabot` antes de desplegar en producción.
+### 1.3 Entrypoint para el servidor
+- En lugar del comando de desarrollo (`uvicorn main:app --reload`), usar para producción:
+  ```
+  gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:$PORT main:app
+  ```
+  (Donde `$PORT` es proporcionado por la plataforma de hosting).
+- **Explicación detallada de los parámetros de Gunicorn:**
+  - `-k uvicorn.workers.UvicornWorker`: Especifica el tipo de worker que Gunicorn debe usar. `UvicornWorker` adapta workers de Gunicorn para ejecutar aplicaciones ASGI (como FastAPI) en lugar de las tradicionales aplicaciones WSGI.
+  - `-w 4`: Número de procesos workers. La regla general es `(2 x número de núcleos CPU) + 1`. Para determinar el número óptimo:
+    * En entornos con CPU conocida: ejecutar `nproc` en Linux/MacOS o verificar el administrador de tareas en Windows
+    * En plataformas de hosting que comparten recursos: empezar con 2-4 workers y monitorear uso de CPU y memoria
+    * Demasiados workers pueden causar contention por recursos; demasiado pocos pueden subutilizar la CPU
+  - `-b 0.0.0.0:$PORT`: Vincula el servidor a todas las interfaces de red disponibles (`0.0.0.0`) en el puerto especificado por la variable de entorno `$PORT`. 
+    * `0.0.0.0` permite conexiones desde cualquier dirección IP (necesario en entornos de hosting donde el tráfico llega a través de un reverse proxy)
+    * `$PORT` es proporcionado dinámicamente por plataformas como Render, Railway, Fly.io, etc. (ej. Render proporciona `$PORT` automáticamente)
+    * En un VPS tradicional, se podría reemplazar `$PORT` por un número fijo como `8000` y configurar un reverse proxy (nginx/apache) para entregar tráfico al puerto 80/443
+  - `main:app`: Especifica el módulo (`main.py`) y el objeto de la aplicación (`app`) que Gunicorn debe cargar.
+- **Cómo determinar el número óptimo de workers:**
+  1. Monitorear métricas de CPU y memoria durante pruebas de carga
+  2. Observar el tiempo de respuesta y el throughput (requests por segundo)
+  3. Ajustar gradualmente el número de workers hasta que ya no se mejore el rendimiento
+  4. Considerar usar herramientas como `autoworkers` de Gunicorn o scripts personalizados para ajustar dinámicamente (aunque esto es menos común en contenedores)
+- **Diferencia entre desarrollo y producción:**
+  - *Desarrollo:* `uvicorn main:app --reload` 
+    * Recarga automática al detectar cambios en archivos (útil para desarrollo)
+    * Un solo worker (no concurrente)
+    * Salida de logs más verbosa para depuración
+  - *Producción:* `gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:$PORT main:app`
+    * Sin recarga automática (evita reinicios innecesarios y riesgos de seguridad)
+    * Múltiples workers para concurrencia y tolerancia a fallos
+    * Configuración de logs optimizada para producción (menos verbosa, formato estructurado)
+- **Alternativas y configuraciones avanzadas:**
+  - **Archivo de configuración de Gunicorn:** En lugar de parámetros largos, usar un archivo `gunicorn.conf.py`:
+    ```python
+    bind = "0.0.0.0:$PORT"
+    workers = 4
+    worker_class = "uvicorn.workers.UvicornWorker"
+    loglevel = "info"
+    accesslog = "-"
+    errorlog = "-"
+    ```
+    Luego ejecutar: `gunicorn -c gunicorn.conf.py main:app`
+  - **Variables de entorno para configuración:** 
+    * `WEB_CONCURRENCY`: Algunas plataformas usan esta variable para determinar el número de workers (ej. Heroku)
+    * Puede leer `WORKERS_PER_CORE=2` y calcular automáticamente basado en CPU disponibles
+  - **En entornos de contenedores (Docker/Kubernetes):**
+    * El comando de entrypoint en el Dockerfile sería similar
+    * Kubernetes manejaría el escalado mediante replicas en lugar de workers de Gunicorn
+    * En ese caso, se podría usar solo 1-2 workers por container y dejar que Kubernetes administre la cantidad de instancias
+- **Verificación del entrypoint:**
+  - Probar el comando manualmente en el entorno de staging antes de desplegar
+  - Verificar que la aplicación responda correctamente en el puerto especificado
+  - Revisar los logs para asegurar que no hay errores de importación o configuración
+  - Confirmar que los health checks de la plataforma de hosting pasan correctamente
+- **Dependencias opcionales pero recomendadas para producción:**
+  - `python-dotenv`: Para cargar variables de entorno desde un archivo `.env` durante el desarrollo (debe estar excluido en producción mediante `.gitignore`).
+  - `email-validator`: Si se implementa validación de emails en el futuro (actualmente no se usa en el proyecto pero es común en aplicaciones de autenticación).
+- **Configuración de CORS para producción:**
+  - En lugar de `allow_origins=["*"]`, especificar los dominios exactos permitidos
+  - Ejemplo: `allow_origins=["https://tudominio.com", "https://www.tudominio.com"]`
+  - Considerar usar variables de entorno para esta lista en múltiples entornos
+  - Mantener `allow_credentials=True` si se usan cookies o autenticación con sesiones
+  - Limitar `allow_methods` y `allow_headers` a lo estrictamente necesario
+- **Otros ajustes de producción recomendados:**
+  - Habilitar compresión de respuestas (GZip) para reducir ancho de banda
+  - Configurar tiempo de vida de sesiones o tokens JWT apropiadamente
+  - Implementar health check endpoints para monitoreo del servicio
+  - Considerar usar un reverse proxy (como Nginx) en adelante para terminación SSL y serving estático
+
+### 1.2 Archivo de requisitos
+- Confirmar que `backend/requirements.txt` incluya:
+  ```
+  fastapi
+  uvicorn[standard]
+  sqlalchemy
+  python-multiparte
+  ```
+- Agregar `gunicorn` para producción con múltiples workers si no está presente.
+
+### 1.3 Entrypoint para el servidor
+- En lugar del comando de desarrollo (`uvicorn main:app --reload`), usar para producción:
+  ```
+  gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:$PORT main:app
+  ```
+  (Donde `$PORT` es proporcionado por la plataforma de hosting).
+
+## 2. Preparación del Frontend
+
+### 2.1 Naturally estático
+- El frontend está compuesto por archivos estáticos: `frontend/index.html`, `frontend/css/`, `frontend/js/`.
+- No requiere proceso de build (no hay frameworks como React/Vue que necesiten compilación).
+
+### 2.2 Opciones de servir el frontend
+**Opción A: Servido por el mismo backend**
+
+---
+
+## Historial de Versiones
+
+| Versión | Fecha       | Descripción                     |
+|---------|-------------|---------------------------------|
+| 1.0     | 2026-10-09  | Creación inicial del documento  |
+| 1.1     | 2026-10-09  | Paso 1 completado: Preparación del Backend |
+|         |             | - Se añadió `gunicorn>=20.0.0` a `backend/requirements.txt` |
+|         |             | - Se documentaron los cambios necesarios en `backend/main.py` para producción: |
+|         |             |   * Configuración de logging estructurado |
+|         |             |   * Middleware de seguridad (TrustedHostMiddleware) |
+|         |             |   * Manejadores de excepciones personalizados |
+|         |             |   * Middleware de límite de tamaño de solicitud |
+|         |             |   * Configuración de CORS para producción |
+|         |             |   * Entrypoint recomendado para Gunicorn |
+|         |             | - Debido a complejidades en la edición automática del archivo, los cambios en `backend/main.py` se han documentado pero no se han aplicado automáticamente en esta sesión. |
+|         |             | - Los desarrolladores deben aplicar manualmente los cambios documentados en `backend/main.py` siguiendo las guidelines de la sección 1.1-1.3. |
+
+---
+*Este documento se mantendrá actualizado conforme evolucione el proyecto y se incorporen lecciones aprendidas de los despliegues.*
+- Copiar la carpeta `frontend/` dentro del proyecto backend.
+- Configurar FastAPI para servir archivos estáticos:
+  ```python
+  from fastapi.staticfiles import StaticFiles
+  app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+  ```
+  (Colocar esto en `backend/main.py` antes de definir las rutas API).
+
+**Opción B: Servicio separado estático**
+- Subir los archivos de `frontend/` a un servicio de almacenamiento estático (ej. Netlify, Firebase Hosting, GitHub Pages).
+- En este caso, asegurar que el frontend haga llamadas API al dominio del backend (configurando CORS correctamente en el backend).
+
+## 3. Elección de la Plataforma de Hosting
+
+El servicio elegido debe soportar:
+- Ejecución de procesos backend (para FastAPI/ASGI).
+- Servir archivos estáticos (si se elige Opción A) o integración con almacenamiento estático (Opción B).
+- Variables de entorno y volúmenes persistentes (para SQLite).
+
+### Plataformas recomendadas (ejemplos genéricos):
+- **Render.com**: Servicios "Web Service" (backend) y "Static Site" (frontend). Permite variables de entorno y discos persistentes.
+- **Railway.app**: Similar a Render, con despliegue desde Git y variables de entorno.
+- **Fly.io**: Buen rendimiento global, soporta Docker (opcional pero recomendado).
+- **VPS tradicional** (ej. DigitalOcean, Linode): Máximo control, pero requiere más configuración manual (nginx como reverse proxy, systemd para servicio backend, etc.).
+
+## 4. Pasos de Despliegue
+
+### 4.1 Repositorio
+- Asegurarse de que el código esté en un repositorio Git (GitHub, GitLab, etc.) accesible por la plataforma de hosting.
+
+### 4.2 Configurar el servicio backend
+- Conectar el repositorio al servicio de hosting.
+- Definir el comando de inicio (ej. `gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:$PORT main:app`).
+- Agregar variables de entorno críticas:
+  - `BANCA_DB_PATH`: Ruta al volumen persistente (ej. `/data/banca_hipica.db` en Render).
+  - Otras variables según sea necesario.
+
+### 4.3 Configurar el frontend
+- **Opción A**: El frontend se sirve junto con el backend (no se necesita paso separado).
+- **Opción B**: Crear un servicio/site estático y apuntar a la carpeta `frontend/` del repositorio.
+
+### 4.4 Base de datos
+- En el primer arranque, el seeding inicial (`database.seed_initial_data()`) creará las tablas y el usuario admin (`admin/admin123`).
+- **Importante**: SQLite no es adecuado para escalado horizontal (múltiples instancias) debido a falta de concurrencia segura. Para más de una instancia, considerar migrar a PostgreSQL/MySQL. Para una instancia única o tráfico bajo, SQLite con disco persistente funciona.
+
+### 4.5 Dominio y SSL
+- La mayoría de plataformas proveen un subdominio gratuito (ej. `tuapp.onrender.com`) con SSL automático.
+- Para dominio propio, configurar los DNS siguiendo la guía del hosting.
+
+### 4.6 Variables de entorno sensibles
+- Nunca almacenar secrets en el repositorio. Usar el sistema de variables de entorno del hosting para:
+  - Credenciales de base de datos (si se migra de SQLite).
+  - Claves secretas para JWT (si se implementan en el futuro).
+  - Otras configuraciones específicas del entorno.
+
+## 5. Verificación Post-Despliegue
+
+### 5.1 Backend
+- Acceder a `https://tudominio.com/docs` (Swagger UI de FastAPI) para verificar que la API está activa.
+- Probar un endpoint público (ej. `GET /auth/me` debería requerir autenticación, pero la documentación de Swagger debería cargar).
+
+### 5.2 Frontend
+- Visitar `https://tudominio.com` y verificar que carga la SPA.
+- Probar flujos completos: registro, login, creación de duelo, visualización de duelos disponibles.
+
+### 5.3 Base de datos
+- Confirmar que el archivo SQLite se está escribiendo en el volumen persistente (si aplica).
+- Revisar logs del backend para errores de seeding o conexión.
+
+### 5.4 Responsividad y errores
+- Abrir la consola del navegador (F12) para verificar que no hay errores de JavaScript ni peticiones API fallidas (CORS, 404, 500).
+- Probar tanto en desktop como en móvil (diseño responsive asumido desde el Tailwind usado).
+
+## 6. Consideraciones Adicionales
+
+### 6.1 Escalabilidad
+- Si el proyecto crece, evaluar migrar de SQLite a PostgreSQL (la mayoría de hosts ofrecen bases de datos gestionadas fáciles de integrar).
+
+### 6.2 Seguridad
+- En producción, cambiar la contraseña del admin inicial (`admin/admin123`) tras el primer login.
+- Considerar usar HTTPS obligatorio (las plataformas lo gestionan automáticamente en sus dominios).
+- Evaluar agregar rate limiting en endpoints críticos si se expone a alto tráfico.
+
+### 6.3 Monitoreo
+- Muchos hosts ofrecen logs y métricas básicas; para más detalle, integrar servicios como Sentry (errores) o Prometheus (métricas) si es necesario.
+
+### 6.4 Actualizaciones
+- Configurar despliegues automáticos desde la rama `main` o `master` del repositorio para reducir fricción en releases.
+
+## 7. Archivos Clave a Verificar Antes de Desplegar
+
+- `backend/main.py`: Punto de entrada, configuración de CORS y montaje de estáticos (si aplica).
+- `backend/database.py`: Uso de `BANCA_DB_PATH` vía `os.getenv` y seeding.
+- `backend/requirements.txt`: Dependencias listas para `pip install`.
+- `frontend/`: Integridad de los archivos estáticos (sin rutas rotas a APIs locales).
+- `.gitignore`: Asegurarse de que no se suba `banca_hipica.db` (sí se debe subir el `.sql` de dump si lo usan para inicializar, pero el `.db` se genera en arranque).
+
+---
+
+## Historial de Versiones
+
+| Versión | Fecha       | Descripción                     |
+|---------|-------------|---------------------------------|
+| 1.0     | 2026-10-09  | Creación inicial del documento  |
+| 1.1     | 2026-10-09  | Paso 1 completado: Preparación del Backend |
+|         |             | - Se añadió `gunicorn>=20.0.0` a `backend/requirements.txt` |
+|         |             | - Se documentaron los cambios necesarios en `backend/main.py` para producción: |
+|         |             |   * Configuración de logging estructurado |
+|         |             |   * Middleware de seguridad (TrustedHostMiddleware) |
+|         |             |   * Manejadores de excepciones personalizados |
+|         |             |   * Middleware de límite de tamaño de solicitud |
+|         |             |   * Configuración de CORS para producción |
+|         |             |   * Entrypoint recomendado para Gunicorn |
+|         |             | - Debido a complejidades en la edición automática del archivo, los cambios en `backend/main.py` se han documentado pero no se han aplicado automáticamente en esta sesión. |
+|         |             | - Los desarrolladores deben aplicar manualmente los cambios documentados en `backend/main.py` siguiendo las guidelines de la sección 1.1-1.3. |
+
+---
+*Este documento se mantendrá actualizado conforme evolucione el proyecto y se incorporen lecciones aprendidas de los despliegues.*

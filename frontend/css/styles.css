@@ -1,0 +1,130 @@
+/* Banca Hípica P2P — estilos base (complementan Tailwind CDN). */
+
+:root {
+  --brand: #059669;
+  --brand-dark: #047857;
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+/* ── Superficies ── */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+.card-tight { padding: 0.85rem; }
+
+/* ── Controles ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  border-radius: 0.85rem;
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.1;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.btn:active { transform: scale(0.985); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-ghost { background: #f1f5f9; color: #0f172a; }
+.btn-ghost:hover { background: #e2e8f0; }
+.btn-danger { background: #fee2e2; color: #b91c1c; }
+.btn-danger:hover { background: #fecaca; }
+.btn-warn { background: #fef3c7; color: #92400e; }
+.btn-warn:hover { background: #fde68a; }
+.btn-sm { padding: 0.5rem 0.75rem; font-size: 0.82rem; border-radius: 0.7rem; width: auto; }
+
+/* Filtro de colas (recargas/retiros) en estado activo */
+.btn.req-filter.active { background: var(--brand); color: #fff; }
+.btn.req-filter.active:hover { background: var(--brand-dark); }
+
+.input, .select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 1rem;
+  background: #fff;
+  color: #0f172a;
+}
+.input:focus, .select:focus {
+  outline: 2px solid rgba(5, 150, 105, 0.35);
+  border-color: var(--brand);
+}
+.label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 0.3rem;
+}
+
+/* ── Estados / badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.badge-open { background: #dbeafe; color: #1d4ed8; }
+.badge-active { background: #fef3c7; color: #b45309; }
+.badge-resolved { background: #d1fae5; color: #047857; }
+.badge-pending { background: #fef3c7; color: #b45309; }
+.badge-approved, .badge-paid { background: #d1fae5; color: #047857; }
+.badge-rejected { background: #fee2e2; color: #b91c1c; }
+
+/* ── Vistas ── */
+.view { display: none; }
+.view.active { display: block; animation: fadein 0.18s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.money { font-variant-numeric: tabular-nums; }
+
+.main-safe { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+.nav-safe { padding-bottom: calc(0.4rem + env(safe-area-inset-bottom)); }
+
+/* ── Toast ── */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(6rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: 92vw;
+  border-radius: 0.9rem;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+#toast.ok { background: #047857; }
+#toast.err { background: #b91c1c; }
+#toast.info { background: #0f172a; }
+
+.skeleton { background: #e2e8f0; border-radius: 0.6rem; height: 1rem; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }

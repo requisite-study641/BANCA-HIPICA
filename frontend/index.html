@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Banca Hípica P2P — Duelos de apuestas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { brand: { DEFAULT: "#059669", dark: "#047857" } } } }
+    };
+  </script>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased">
+
+  <!-- ══════════════════ PANTALLA DE ACCESO ══════════════════ -->
+  <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+      <div class="text-center mb-6">
+        <div class="text-5xl mb-2">🏇</div>
+        <h1 class="text-2xl font-extrabold text-slate-900">Banca Hípica P2P</h1>
+        <p class="text-sm text-slate-500 mt-1">Duelos de apuestas en carreras de caballos</p>
+      </div>
+
+      <div class="card">
+        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-4">
+          <button id="tab-login" class="py-2 rounded-lg text-sm font-bold bg-white shadow">Entrar</button>
+          <button id="tab-register" class="py-2 rounded-lg text-sm font-bold text-slate-500">Crear cuenta</button>
+        </div>
+
+        <form id="login-form" class="space-y-3">
+          <div>
+            <label class="label" for="login-username">Usuario</label>
+            <input id="login-username" class="input" autocomplete="username" placeholder="tu_usuario" required />
+          </div>
+          <div>
+            <label class="label" for="login-password">Contraseña</label>
+            <input id="login-password" type="password" class="input" autocomplete="current-password" placeholder="••••••••" required />
+          </div>
+          <button class="btn btn-primary" type="submit">Iniciar sesión</button>
+          <p class="text-[11px] text-slate-400 text-center">Cuenta inicial de administrador: <b>admin / admin123</b></p>
+        </form>
+
+        <form id="register-form" class="space-y-3 hidden">
+          <div>
+            <label class="label" for="reg-username">Nuevo usuario</label>
+            <input id="reg-username" class="input" minlength="3" placeholder="mínimo 3 caracteres" required />
+          </div>
+          <div>
+            <label class="label" for="reg-password">Contraseña</label>
+            <input id="reg-password" type="password" class="input" minlength="4" placeholder="mínimo 4 caracteres" required />
+          </div>
+          <button class="btn btn-primary" type="submit">Crear cuenta y entrar</button>
+        </form>
+      </div>
+      <p class="text-center text-[11px] text-slate-400 mt-4">Comisión de la casa: 5 % por duelo resuelto</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════ APLICACIÓN ══════════════════ -->
+  <div id="app" class="hidden">
+    <header class="sticky top-0 z-40 bg-slate-900 text-white">
+      <div class="max-w-lg mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-xl">🏇</span>
+          <div class="min-w-0">
+            <p class="text-sm font-bold leading-tight truncate">Banca Hípica P2P</p>
+            <p id="header-user" class="text-[11px] text-slate-400 truncate">—</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="bg-slate-800 rounded-xl px-3 py-1.5 text-right">
+            <p class="text-[10px] uppercase tracking-wide text-slate-400 leading-none">Balance</p>
+            <p id="header-balance" class="text-sm font-extrabold money leading-tight">$0.00</p>
+          </div>
+          <button id="logout-btn" title="Cerrar sesión" class="bg-slate-800 hover:bg-slate-700 rounded-xl w-9 h-9 grid place-items-center">⏻</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="main-safe max-w-lg mx-auto w-full px-4 py-4 space-y-4">
+
+      <!-- ───── Dashboard usuario ───── -->
+      <section id="view-dashboard" class="view active space-y-4">
+        <div class="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-5 shadow-lg">
+          <p class="text-xs uppercase tracking-widest text-emerald-100">Balance disponible</p>
+          <p id="dash-balance" class="text-4xl font-extrabold money mt-1">$0.00</p>
+          <p class="text-xs text-emerald-100 mt-1">Lo retenido en duelos permanece en escrow hasta resolverse.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <button class="card card-tight text-center active:bg-slate-50" data-nav="create-duel">
+            <div class="text-2xl">⚔️</div>
+            <p class="text-sm font-bold mt-1">Crear duelo</p>
+          </button>
+          <button class="card card-tight text-center active:bg-slate-50" data-nav="available">
+            <div class="text-2xl">📜</div>
+            <p class="text-sm font-bold mt-1">Duelos abiertos</p>
+          </button>
+          <button class="card card-tight text-center active:bg-slate-50" data-nav="topup">
+            <div class="text-2xl">💳</div>
+            <p class="text-sm font-bold mt-1">Recargar</p>
+          </button>
+          <button class="card card-tight text-center active:bg-slate-50" data-nav="withdraw">
+            <div class="text-2xl">💸</div>
+            <p class="text-sm font-bold mt-1">Retirar</p>
+          </button>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="font-bold text-slate-900">Mis últimos duelos</h2>
+            <button class="text-xs font-bold text-brand" data-nav="my-duels">Ver todos →</button>
+          </div>
+          <div id="dash-duels" class="space-y-2"></div>
+        </div>
+      </section>
+
+     <!-- ───── Crear duelo ───── -->
+      <section id="view-create-duel" class="view space-y-4">
+        <div class="card">
+          <h2 class="font-bold text-lg text-slate-900 mb-1">⚔️ Crear duelo</h2>
+          <p class="text-xs text-slate-500 mb-4">
+            Eliges el tipo de duelo, tu caballo y el caballo rival de la cartelera oficial.
+            Tu stake se retiene en escrow al publicar.
+          </p>
+          <form id="create-duel-form" class="space-y-3">
+            <div>
+              <label class="label" for="duel-type-select">Tipo de duelo</label>
+              <select id="duel-type-select" class="select" required></select>
+              <p id="duel-type-hint" class="text-[11px] text-slate-500 mt-1">—</p>
+            </div>
+            <div>
+              <label class="label" for="race-select">Carrera</label>
+              <select id="race-select" class="select" required></select>
+            </div>
+
+            <!-- Contenedor dinámico cargado desde app.js -->
+            <div id="horses-select-container" class="grid grid-cols-2 gap-3">
+              <!-- Se renderizan automáticamente 1, 2 o 4 selectores según la modalidad -->
+            </div>
+
+        <div>
+              <label class="label" for="stake-input">Stake (monto de apuesta)</label>
+              <input id="stake-input" class="input money" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="10.00" required />
+              
+              <!-- CALCULADORA DE RETORNO NETO -->
+              <div id="payout-calculator" class="mt-2 hidden rounded-xl bg-emerald-50/80 border border-emerald-200 p-3 text-xs text-emerald-950 space-y-1">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-600">Pozo Total (2x Stake):</span>
+                  <span id="calc-pot" class="font-bold text-slate-800">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-600">Comisión de la Casa (5%):</span>
+                  <span id="calc-fee" class="font-medium text-slate-500">-$0.00</span>
+                </div>
+                <div class="flex justify-between items-center pt-1 border-t border-emerald-200/60 font-black text-sm text-emerald-700">
+                  <span>Ganancia Neta Estimada:</span>
+                  <span id="calc-net">$0.00</span>
+                </div>
+              </div>
+
+              <p class="text-[11px] text-slate-500 mt-1">Se descuenta de tu balance y queda retenido hasta la resolución.</p>
+            </div>
+            <button class="btn btn-primary" type="submit">Publicar duelo</button>
+          </form>
+        </div>
+        <div class="card bg-slate-50">
+          <p class="text-xs text-slate-600"><b>Recuerda:</b> el oponente igualará el stake. Al resolverse, el pozo paga <b>5 % de comisión</b> a la casa y el 95 % restante va al ganador.</p>
+        </div>
+      </section>
+
+      <!-- ───── Duelos abiertos ───── -->
+      <section id="view-available" class="view space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-lg text-slate-900">📜 Duelos abiertos</h2>
+          <button id="refresh-available" class="btn btn-ghost btn-sm">↻ Actualizar</button>
+        </div>
+        <p class="text-xs text-slate-500 -mt-2">Acepta con un toque: deberás igualar el stake (se retiene en escrow).</p>
+        <div id="available-list" class="space-y-3"></div>
+      </section>
+
+      <!-- ───── Mis duelos ───── -->
+      <section id="view-my-duels" class="view space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-lg text-slate-900">🎯 Mis duelos</h2>
+          <button id="refresh-my-duels" class="btn btn-ghost btn-sm">↻ Actualizar</button>
+        </div>
+        <div id="my-duels-list" class="space-y-3"></div>
+      </section>
+
+      <!-- ───── Recarga ───── -->
+      <section id="view-topup" class="view space-y-4">
+        <div class="card">
+          <h2 class="font-bold text-lg text-slate-900 mb-1">💳 Recarga por pago móvil</h2>
+          <p class="text-xs text-slate-500 mb-3">Transfiere a los datos de la casa y reporta el pago. Se acredita al ser aprobado.</p>
+          <div id="bank-info-topup" class="rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm space-y-1 mb-4">
+            <p class="text-slate-400 text-xs">Cargando datos bancarios…</p>
+          </div>
+          <form id="topup-form" class="space-y-3">
+            <div>
+              <label class="label" for="topup-amount">Monto enviado</label>
+              <input id="topup-amount" class="input" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="20.00" required />
+            </div>
+            <div>
+              <label class="label" for="topup-reference">Referencia del pago</label>
+              <input id="topup-reference" class="input" placeholder="Ej. 123456789" minlength="3" required />
+            </div>
+            <div>
+              <label class="label" for="topup-phone">Teléfono desde el que pagaste</label>
+              <input id="topup-phone" class="input" inputmode="tel" placeholder="Ej. 0414-0000000" required />
+            </div>
+            <button class="btn btn-primary" type="submit">Reportar pago</button>
+          </form>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">Mis reportes de recarga</h3>
+          <div id="topup-history" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- ───── Retiro ───── -->
+      <section id="view-withdraw" class="view space-y-4">
+        <div class="card">
+          <h2 class="font-bold text-lg text-slate-900 mb-1">💸 Solicitar retiro</h2>
+          <p class="text-xs text-slate-500 mb-3">
+            El monto se descuenta de inmediato y queda retenido hasta que la administración lo pague.
+          </p>
+          <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 mb-4 flex justify-between items-center">
+            <span class="text-xs font-bold text-emerald-700">Disponible</span>
+            <span id="withdraw-balance" class="font-extrabold text-emerald-800 money">$0.00</span>
+          </div>
+          <form id="withdraw-form" class="space-y-3">
+            <div>
+              <label class="label" for="withdraw-amount">Monto a retirar</label>
+              <input id="withdraw-amount" class="input" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="10.00" required />
+            </div>
+            <div>
+              <label class="label" for="withdraw-phone">Teléfono / cuenta de destino</label>
+              <input id="withdraw-phone" class="input" inputmode="tel" placeholder="Ej. 0414-0000000" required />
+            </div>
+            <button class="btn btn-primary" type="submit">Solicitar retiro</button>
+          </form>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">Mis retiros</h3>
+          <div id="withdraw-history" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- ═════════ ADMIN: Tipos de duelo (CRUD) ═════════ -->
+      <section id="view-admin-duel-types" class="view space-y-4">
+        <h2 class="font-bold text-lg text-slate-900">🧩 Tipos de duelo</h2>
+        <div class="card">
+          <h3 id="duel-type-form-title" class="font-bold text-sm text-slate-700 mb-3">Nuevo tipo de duelo</h3>
+          <form id="duel-type-form" class="space-y-3">
+            <input type="hidden" id="duel-type-id" value="" />
+            <div>
+              <label class="label" for="duel-type-name">Nombre</label>
+              <input id="duel-type-name" class="input" placeholder="Ej. Menor número gana" minlength="3" required />
+            </div>
+            <div>
+              <label class="label" for="duel-type-rule">Regla lógica</label>
+              <select id="duel-type-rule" class="select" required>
+                <option value="LOWEST_HORSE_NUMBER">Menor número de caballo gana</option>
+                <option value="HIGHEST_HORSE_NUMBER">Mayor número de caballo gana</option>
+                <option value="MANUAL">Manual — el admin ingresa el ganador</option>
+                <option value="OFFICIAL_FINISH">Posiciones oficiales (top 5) — gana el mejor puesto</option>
+                <option value="TIE_REFUND">Empate — reembolso sin comisión</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="duel-type-description">Descripción</label>
+              <textarea id="duel-type-description" class="input" rows="2" placeholder="Cómo se resuelve este duelo…"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="btn btn-primary" type="submit" id="duel-type-save-btn">Crear</button>
+              <button class="btn btn-ghost" type="button" id="duel-type-cancel-btn">Limpiar</button>
+            </div>
+          </form>
+        </div>
+        <div id="duel-types-admin-list" class="space-y-2"></div>
+      </section>
+
+      <!-- ═════════ ADMIN: Carga de cartelera ═════════ -->
+      <section id="view-admin-races" class="view space-y-4">
+        <h2 class="font-bold text-lg text-slate-900">📁 Cartelera oficial</h2>
+        <div class="card">
+          <p class="text-xs text-slate-500 mb-1">
+            <b>Formato A · Reporte oficial INH</b> (CSV latin-1/cp1252 o Excel, p. ej. «Ejemplares inscritos reunión 39.xlsx»):
+            bloques con <code class="bg-slate-100 px-1 rounded">Carrera Nro: X</code>,
+            <code class="bg-slate-100 px-1 rounded">Fecha:</code> y
+            <code class="bg-slate-100 px-1 rounded">Hora:</code>, y tabla de columnas
+            <code class="bg-slate-100 px-1 rounded">N° | Ejemplar</code> (detecta <code>;</code>, <code>,</code>, <code>|</code> o tabulación).
+            <a class="text-brand font-bold" href="ejemplares_inh_ejemplo.csv" download>⬇ Ejemplo INH</a>
+          </p>
+          <p class="text-xs text-slate-500 mb-1">
+            <b>Formato B · CSV/Excel plano</b> (una fila por ejemplar): encabezados exactos en la fila 1 —
+            <code class="bg-slate-100 px-1 rounded">numero_carrera, numero_caballo, nombre_caballo, fecha, hora</code>
+            (se admiten alias en español/inglés y mayúsculas/minúsculas, p. ej. <code class="bg-slate-100 px-1 rounded">carrera</code>,
+            <code class="bg-slate-100 px-1 rounded">caballo</code>, <code class="bg-slate-100 px-1 rounded">nombre</code>,
+            <code class="bg-slate-100 px-1 rounded">race_number</code>, <code class="bg-slate-100 px-1 rounded">horse_name</code>).
+            <a class="text-brand font-bold" href="cartelera_ejemplo.csv" download>⬇ Ejemplo CSV</a>
+          </p>
+          <p class="text-xs text-slate-500 mb-3">
+            <b>Tipos de archivo admitidos:</b>
+            <code class="bg-slate-100 px-1 rounded">.csv</code>,
+            <code class="bg-slate-100 px-1 rounded">.txt</code> y
+            <b>Excel</b> <code class="bg-slate-100 px-1 rounded">.xlsx</code>,
+            <code class="bg-slate-100 px-1 rounded">.xlsm</code>,
+            <code class="bg-slate-100 px-1 rounded">.xls</code>
+            (se leen directamente en el servidor, sin necesidad de convertirlos a CSV).
+          </p>
+          <input id="race-file" type="file" accept=".csv,.txt,text/csv,.xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="block w-full text-sm mb-3 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:px-4 file:py-2 file:font-bold" />
+          <button id="upload-race-btn" class="btn btn-primary">⬆ Procesar archivo</button>
+          <p id="upload-result" class="text-xs text-slate-500 mt-2"></p>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-900">Cartelera cargada</h3>
+            <button id="refresh-races" class="btn btn-ghost btn-sm">↻ Actualizar</button>
+          </div>
+          <div id="races-admin-list" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- ═════════ ADMIN: Resolver duelos ═════════ -->
+      <section id="view-admin-resolve" class="view space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-lg text-slate-900">✅ Resolver duelos</h2>
+          <button id="refresh-resolve" class="btn btn-ghost btn-sm">↻ Actualizar</button>
+        </div>
+        <p class="text-xs text-slate-500 -mt-2">
+          La regla lógica del tipo de duelo determina el ganador; el pozo paga 5 % de comisión a la casa.
+        </p>
+        <div id="resolve-list" class="space-y-3"></div>
+        <details class="card">
+          <summary class="font-bold text-sm text-slate-700 cursor-pointer">Duelos abiertos (aún sin oponente)</summary>
+          <div id="resolve-open-list" class="space-y-2 mt-3"></div>
+        </details>
+        <details class="card">
+          <summary class="font-bold text-sm text-slate-700 cursor-pointer">Resueltos (histórico)</summary>
+          <div id="resolve-resolved-list" class="space-y-2 mt-3"></div>
+        </details>
+      </section>
+
+      <!-- ═════════ ADMIN: Resultados oficiales (1° al 5°) ═════════ -->
+      <section id="view-admin-results" class="view space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-lg text-slate-900">🏁 Resultados oficiales</h2>
+          <button id="refresh-official" class="btn btn-ghost btn-sm">↻ Actualizar</button>
+        </div>
+        <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+          Registra la llegada del <b>1° al 5° lugar</b> de cada carrera.
+          <b>Cualquier caballo fuera del top 5 se considera fuera del marcador
+          (no clasificado / perdedor)</b> al resolver los duelos.
+        </div>
+        <form id="official-form" class="card space-y-3">
+          <div>
+            <label class="label" for="official-race-select">Carrera</label>
+            <select id="official-race-select" class="select" required></select>
+          </div>
+                     <div class="space-y-3">
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-horse1">🥇 1° lugar</label>
+               <select id="official-horse1" class="select" required></select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-pos1">Posición</label>
+               <select id="official-pos1" class="select" required>
+                 <option value="1">1</option>
+                 <option value="2">2</option>
+                 <option value="3">3</option>
+                 <option value="4">4</option>
+                 <option value="5">5</option>
+               </select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-horse2">🥈 2° lugar</label>
+               <select id="official-horse2" class="select" required></select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-pos2">Posición</label>
+               <select id="official-pos2" class="select" required>
+                 <option value="1">1</option>
+                 <option value="2">2</option>
+                 <option value="3">3</option>
+                 <option value="4">4</option>
+                 <option value="5">5</option>
+               </select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-horse3">🥉 3° lugar</label>
+               <select id="official-horse3" class="select" required></select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-pos3">Posición</label>
+               <select id="official-pos3" class="select" required>
+                 <option value="1">1</option>
+                 <option value="2">2</option>
+                 <option value="3">3</option>
+                 <option value="4">4</option>
+                 <option value="5">5</option>
+               </select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-horse4">4° lugar</label>
+               <select id="official-horse4" class="select" required></select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-pos4">Posición</label>
+               <select id="official-pos4" class="select" required>
+                 <option value="1">1</option>
+                 <option value="2">2</option>
+                 <option value="3">3</option>
+                 <option value="4">4</option>
+                 <option value="5">5</option>
+               </select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-horse5">5° lugar</label>
+               <select id="official-horse5" class="select" required></select>
+           </div>
+           <div class="grid grid-cols-2 gap-3">
+               <label class="label" for="official-pos5">Posición</label>
+               <select id="official-pos5" class="select" required>
+                 <option value="1">1</option>
+                 <option value="2">2</option>
+                 <option value="3">3</option>
+                 <option value="4">4</option>
+                 <option value="5">5</option>
+               </select>
+           </div>
+           </div>
+          <button class="btn btn-primary" type="submit">💾 Guardar marcador oficial</button>
+          <p class="text-[11px] text-slate-500">
+            Al guardar, los duelos activos de la carrera muestran el ganador sugerido según este marcador.
+          </p>
+        </form>
+        <div id="official-status" class="space-y-3"></div>
+      </section>
+
+      <!-- ═════════ ADMIN: Recargas y retiros ═════════ -->
+      <section id="view-admin-requests" class="view space-y-4">
+        <h2 class="font-bold text-lg text-slate-900">💰 Aprobar recargas y retiros</h2>
+        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-200 rounded-xl">
+          <button id="tab-topups" class="py-2 rounded-lg text-sm font-bold bg-white shadow">Recargas</button>
+          <button id="tab-withdrawals" class="py-2 rounded-lg text-sm font-bold text-slate-500">Retiros</button>
+        </div>
+
+        <div id="panel-topups" class="space-y-3">
+          <div class="flex gap-2">
+            <button class="btn btn-ghost btn-sm req-filter active" data-kind="topups" data-status="PENDING">Pendientes</button>
+            <button class="btn btn-ghost btn-sm req-filter" data-kind="topups" data-status="APPROVED">Aprobadas</button>
+            <button class="btn btn-ghost btn-sm req-filter" data-kind="topups" data-status="">Todas</button>
+          </div>
+          <div id="topups-admin-list" class="space-y-3"></div>
+        </div>
+
+        <div id="panel-withdrawals" class="hidden space-y-3">
+          <div class="flex gap-2">
+            <button class="btn btn-ghost btn-sm req-filter active" data-kind="withdrawals" data-status="PENDING">Pendientes</button>
+            <button class="btn btn-ghost btn-sm req-filter" data-kind="withdrawals" data-status="PAID">Pagadas</button>
+            <button class="btn btn-ghost btn-sm req-filter" data-kind="withdrawals" data-status="">Todas</button>
+          </div>
+          <div id="withdrawals-admin-list" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- ═════════ ADMIN: Banco ═════════ -->
+      <section id="view-admin-bank" class="view space-y-4">
+        <h2 class="font-bold text-lg text-slate-900">🏦 Configurar banco</h2>
+        <div class="card">
+          <p class="text-xs text-slate-500 mb-3">Estos datos se muestran a los usuarios al recargar (pago móvil).</p>
+          <form id="bank-form" class="space-y-3">
+            <div>
+              <label class="label" for="bank-name">Banco / wallet</label>
+              <input id="bank-name" class="input" placeholder="Ej. Banco Nacional" required />
+            </div>
+            <div>
+              <label class="label" for="bank-phone">Teléfono</label>
+              <input id="bank-phone" class="input" inputmode="tel" placeholder="Ej. 0414-0000000" required />
+            </div>
+            <div>
+              <label class="label" for="bank-id">Cédula</label>
+              <input id="bank-id" class="input" placeholder="Ej. V-12345678" required />
+            </div>
+            <div>
+              <label class="label" for="bank-type">Tipo de cuenta</label>
+              <input id="bank-type" class="input" placeholder="Ej. Ahorro / Corriente / Pago móvil" required />
+            </div>
+            <div>
+              <label class="label" for="bank-holder">Titular</label>
+              <input id="bank-holder" class="input" placeholder="Nombre del titular" required />
+            </div>
+            <button class="btn btn-primary" type="submit">Guardar datos bancarios</button>
+          </form>
+        </div>
+      </section>
+
+<!-- ═════════ ADMIN: Auditoría ═════════ -->
+      <section id="view-admin-audit" class="view space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-lg text-slate-900">📊 Auditoría</h2>
+          <button id="refresh-audit" class="btn btn-ghost btn-sm">↻ Actualizar</button>
+        </div>
+        <div id="audit-kpis" class="grid grid-cols-2 gap-3"></div>
+        <div class="card">
+          <h3 class="font-bold text-sm text-slate-700 mb-3">Comisiones de la casa (5 %)</h3>
+          <div id="audit-commissions" class="text-sm space-y-1"></div>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">Cuentas y balances</h3>
+          <div id="audit-users-list" class="space-y-2"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ══════════ NAVEGACIÓN INFERIOR ══════════ -->
+    <nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 nav-safe">
+      <div class="w-full mx-auto px-4">
+        <div id="nav-items" class="flex gap-1 flex-wrap overflow-x-auto no-scrollbar px-2 py-2"></div>
+      </div>
+    </nav>
+  </div>
+
+  <div id="toast" role="status"></div>
+
+  <!-- ══════════ MODAL DE CONFIRMACIÓN ══════════ -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+      
+      <!-- Encabezado del Modal -->
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h3 class="font-black text-slate-800 text-base flex items-center gap-2">
+          <span>⚔️</span> Confirmar Aceptación
+        </h3>
+        <button id="close-modal-btn" type="button" class="text-slate-400 hover:text-slate-600 font-bold text-lg p-1">
+          ✕
+        </button>
+      </div>
+
+      <!-- Contenido Inyectado Dinámicamente por JS -->
+      <div id="modal-summary-content" class="space-y-3 text-xs"></div>
+
+      <!-- Botones de Acción -->
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <button id="cancel-modal-btn" type="button" class="w-1/2 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 text-xs">
+          Cancelar
+        </button>
+        <button id="confirm-accept-btn" type="button" class="w-1/2 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 text-xs shadow-lg shadow-emerald-600/20">
+          Confirmar y Retener
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scripts JavaScript -->
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
