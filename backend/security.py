@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
-from .database import ROLE_ADMIN, AuthToken, User, get_db
+from database import ROLE_ADMIN, AuthToken, User, get_db
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> str:
