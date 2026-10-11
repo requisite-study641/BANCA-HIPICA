@@ -19,8 +19,8 @@ from ..database import (
     WithdrawalRequest,
     get_db,
 )
-from ..schemas import BankInfoUpdate, TopUpCreate, WithdrawCreate
-from ..security import get_current_user, require_admin
+from schemas import BankInfoUpdate, TopUpCreate, WithdrawCreate
+from security import get_current_user, require_admin
 
 router = APIRouter(tags=["payments"])
 

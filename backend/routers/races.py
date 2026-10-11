@@ -26,7 +26,7 @@ from typing import Dict, List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from ..database import (
+from database import (
     DUEL_ACTIVE,
     OFFICIAL_TOP_N,
     Duel,

@@ -17,7 +17,7 @@ from ..database import (
     Duel,
     get_db,
 )
-from ..security import require_admin
+from security import require_admin
 
 router = APIRouter(tags=["audit"])
 

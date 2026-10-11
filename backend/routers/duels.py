@@ -26,8 +26,8 @@ from ..database import (
     get_official_positions,
     official_outcome,
 )
-from ..schemas import DuelAccept, DuelCreate, ResolveDuel
-from ..security import get_current_user, require_admin
+from schemas import DuelAccept, DuelCreate, ResolveDuel
+from security import get_current_user, require_admin
 
 router = APIRouter(tags=["duels"])
 
