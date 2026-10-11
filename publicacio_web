@@ -264,6 +264,11 @@ El servicio elegido debe soportar:
 ### 6.4 Actualizaciones
 - Configurar despliegues automáticos desde la rama `main` o `master` del repositorio para reducir fricción en releases.
 
+### 6.5 Estado actual del despliegue
+- **Estructura de importaciones:** Todos los módulos bajo `backend/` (incluyendo `database.py` y la carpeta `routers/`) utilizan estrictamente importaciones absolutas (ej. `from database import ...`, `from security import ...`) para alinearse con la configuración de ejecución de Render con `--app-dir backend`.
+- **Configuración de Base de Datos:** Uso obligatorio de la cadena de conexión del Connection Pooler de Supabase (puerto 6543 / Session Pooler) para evitar restricciones de IPv4/IPv6 en entornos cloud.
+- **Estado:** Aplicación estable y en ejecución (Live 🟢) en https://banca-hipica.onrender.com.
+
 ## 7. Archivos Clave a Verificar Antes de Desplegar
 
 - `backend/main.py`: Punto de entrada, configuración de CORS y montaje de estáticos (si aplica).
@@ -290,6 +295,12 @@ El servicio elegido debe soportar:
 |         |             |   * Entrypoint recomendado para Gunicorn |
 |         |             | - Debido a complejidades en la edición automática del archivo, los cambios en `backend/main.py` se han documentado pero no se han aplicado automáticamente en esta sesión. |
 |         |             | - Los desarrolladores deben aplicar manualmente los cambios documentados en `backend/main.py` siguiendo las guidelines de la sección 1.1-1.3. |
+| 1.3     | 2026-10-10  | Despliegue en producción completado
+|         |             | - Aplicación desplegada en Render: https://banca-hipica.onrender.com
+|         |             | - Conectada a Supabase PostgreSQL mediante Connection Pooler (IPv4, puerto 6543)
+|         |             | - Importaciones absolutas dentro de backend/ alineadas con --app-dir backend
+|         |             | - Estado: Live 🟢 (estable y en ejecución)
+
 
 ---
 *Este documento se mantendrá actualizado conforme evolucione el proyecto y se incorporen lecciones aprendidas de los despliegues.*
