@@ -40,6 +40,7 @@ from database import (
 from parsers import EXPECTED_HEADER, parse_cartelera
 from schemas import OfficialResultsRequest
 from security import require_admin
+from datetime import datetime, timezone, timedelta
 
 router = APIRouter(tags=["races"])
 
@@ -54,7 +55,17 @@ def list_races(db: Session = Depends(get_db)):
         .order_by(RaceEntry.race_number, RaceEntry.horse_number)
         .all()
     )
-    return [e.to_dict() for e in entries]
+    now = datetime.now(timezone.utc)
+    result = []
+    for e in entries:
+        race_dt = e.race_datetime
+        if race_dt.tzinfo is None:
+            race_dt = race_dt.replace(tzinfo=timezone.utc)
+        is_open = now < (race_dt - timedelta(minutes=1))
+        d = e.to_dict()
+        d["is_open_for_duels"] = is_open
+        result.append(d)
+    return result
 
 
 ALLOWED_RACE_EXTENSIONS = (".csv", ".txt", ".xlsx", ".xlsm", ".xls")

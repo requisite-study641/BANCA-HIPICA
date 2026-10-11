@@ -8,6 +8,7 @@ tipos de duelo por defecto y la fila de datos bancarios).
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -27,6 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+logger = logging.getLogger(__name__)
 # ────────────────────────── Constantes de negocio ──────────────────────────
 FEE_PERCENTAGE = 0.05  # 5% de comisión fija para la casa (la administración).
 
@@ -410,13 +412,18 @@ def official_outcome(
 
 # ─────────────────────────────── Seed inicial ───────────────────────────────
 def seed_initial_data() -> None:
-    """Crea las tablas y siembra: administrador, los 19 tipos de duelo y fila bancaria."""
+    """Crea las tablas y siembra: administrador, los 19 tipos de duelo y fila bank_info.
+    Esta función es idempotente: nunca elimina ni trunca tablas existentes.
+    En entorno de producción, solo se aseguran las tablas y se insertan datos faltantes.
+    """
+    logger.info("Iniciando seed_initial_data...")
     Base.metadata.create_all(bind=engine)
+    logger.info("Tablas creadas/verificadas.")
     db = SessionLocal()
     try:
-        from security import hash_password
-
+        # 1. Crear usuario administrador si no existe
         if db.query(User).filter(User.username == DEFAULT_ADMIN_USERNAME).first() is None:
+            logger.info("Creando usuario administrador por defecto.")
             db.add(
                 User(
                     username=DEFAULT_ADMIN_USERNAME,
@@ -425,35 +432,49 @@ def seed_initial_data() -> None:
                     role=ROLE_ADMIN,
                 )
             )
+        else:
+            logger.debug("Usuario administrador ya existe.")
 
-        # Carga/Refresco de los 19 tipos de duelo predefinidos
-        db.query(DuelType).delete()
-        initial_types = [
-            DuelType(name="PELO a PELO", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro."),
-            DuelType(name="1y2N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, con el 2do Pierdes la Mitad."),
-            DuelType(name="2N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, con el 2do Empatas."),
-            DuelType(name="2y2N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, con el 2do Ganas la Mitad."),
-            DuelType(name="2 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y con el 2do."),
-            DuelType(name="2y3N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y el 2do, con el 3ro Pierdes la Mitad."),
-            DuelType(name="3N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y el 2do, con el 3ro Empatas."),
-            DuelType(name="3y3N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y el 2do, con el 3ro Ganas la Mitad."),
-            DuelType(name="3 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y el 3ro."),
-            DuelType(name="3y4N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y 3ro, con el 4to Pierdes la Mitad."),
-            DuelType(name="4N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y 3ro, con el 4to Empatas."),
-            DuelType(name="4y4N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y el 3ro, con el 4to Ganas la Mitad."),
-            DuelType(name="4 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y el 4to."),
-            DuelType(name="4y5N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y 4to, con el 5to Pierdes la Mitad."),
-            DuelType(name="5N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y 4to, con el 5to Empatas."),
-            DuelType(name="5y5N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y el 4to, con el 5to Ganas la Mitad."),
-            DuelType(name="5 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro, 4to y el 5to."),
-            DuelType(name="MARCAS", logic_rule=RULE_OFFICIAL, description="Caballo vs Caballo.", is_matchup=True),
-            DuelType(name="MOROCHA", logic_rule=RULE_OFFICIAL, description="2 Caballos vs 2 Caballos.", is_morocha=True),
-        ]
-        db.add_all(initial_types)
+        # 2. Carga/Refresco de los tipos de duelo predefinidos solo si la tabla está vacía
+        if db.query(DuelType).count() == 0:
+            logger.info("Tabla duel_types vacía, insertando tipos iniciales.")
+            initial_types = [
+                DuelType(name="PELO a PELO", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro."),
+                DuelType(name="1y2N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, con el 2do Pierdes la Mitad."),
+                DuelType(name="2N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, con el 2do Empatas."),
+                DuelType(name="2y2N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, con el 2do Ganas la Mitad."),
+                DuelType(name="2 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y con el 2do."),
+                DuelType(name="2y3N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y el 2do, con el 3ro Pierdes la Mitad."),
+                DuelType(name="3N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y el 2do, con el 3ro Empatas."),
+                DuelType(name="3y3N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro y el 2do, con el 3ro Ganas la Mitad."),
+                DuelType(name="3 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y el 3ro."),
+                DuelType(name="3y4N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y 3ro, con el 4to Pierdes la Mitad."),
+                DuelType(name="4N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y 3ro, con el 4to Empatas."),
+                DuelType(name="4y4N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do y 3ro, con el 4to Ganas la Mitad."),
+                DuelType(name="4 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y el 4to."),
+                DuelType(name="4y5N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y 4to, con el 5to Pierdes la Mitad."),
+                DuelType(name="5N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y 4to, con el 5to Empatas."),
+                DuelType(name="5y5N", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro y el 4to, con el 5to Ganas la Mitad."),
+                DuelType(name="5 PUESTOS", logic_rule=RULE_OFFICIAL, description="Ganas con el 1ro, 2do, 3ro, 4to y el 5to."),
+                DuelType(name="MARCAS", logic_rule=RULE_OFFICIAL, description="Caballo vs Caballo.", is_matchup=True),
+                DuelType(name="MOROCHA", logic_rule=RULE_OFFICIAL, description="2 Caballos vs 2 Caballos.", is_morocha=True),
+            ]
+            db.add_all(initial_types)
+        else:
+            logger.debug("Tabla duel_types ya contiene datos, se omite siembra.")
 
+        # 3. Inicializar información bancaria si está vacía
         if db.query(BankInfo).count() == 0:
+            logger.info("Tabla bank_info vacía, insertando registro inicial.")
             db.add(BankInfo())
+        else:
+            logger.debug("Tabla bank_info ya contiene datos, se omite siembra.")
 
         db.commit()
+        logger.info("Seed inicial completado.")
+    except Exception:
+        logger.exception("Error durante seed_initial_data")
+        db.rollback()
+        raise
     finally:
         db.close()

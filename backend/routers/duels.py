@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -173,6 +173,13 @@ def create_duel(
     user.balance = round((user.balance or 0.0) - stake, 2)
 
     race_datetime = min(e.race_datetime for e in entries)
+    # Validación de tiempo límite para crear duelos
+    now = datetime.now(timezone.utc)
+    # Ensure race_datetime is timezone-aware UTC
+    if race_datetime.tzinfo is None:
+        race_datetime = race_datetime.replace(tzinfo=timezone.utc)
+    if now >= race_datetime - timedelta(minutes=1):
+        raise HTTPException(status_code=400, detail="El tiempo límite para crear o aceptar duelos en esta carrera ha expirado (1 minuto antes del inicio)")
 
     # 4. Instanciación y guardado del duelo
     duel = Duel(
