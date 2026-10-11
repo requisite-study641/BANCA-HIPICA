@@ -1,4 +1,4 @@
-"""Duelos P2P: creación con escrow, listado, aceptación y resolución administrativa."""
+﻿"""Duelos P2P: creaciÃ³n con escrow, listado, aceptaciÃ³n y resoluciÃ³n administrativa."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from security import get_current_user, require_admin
 router = APIRouter(tags=["duels"])
 
 
-# ────────────────────────────── Serialización ──────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ SerializaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _serialize(duel: Duel, db: Session) -> dict:
     data = duel.to_dict()
     duel_type = db.get(DuelType, duel.duel_type_id)
@@ -41,9 +41,9 @@ def _serialize(duel: Duel, db: Session) -> dict:
     winner = db.get(User, duel.winner_id) if duel.winner_id else None
     data.update(
         {
-            "duel_type_name": duel_type.name if duel_type else "—",
+            "duel_type_name": duel_type.name if duel_type else "â€”",
             "logic_rule": duel_type.logic_rule if duel_type else None,
-            "creator_username": creator.username if creator else "—",
+            "creator_username": creator.username if creator else "â€”",
             "acceptor_username": acceptor.username if acceptor else None,
             "winner_username": winner.username if winner else None,
             "pot": round((duel.stake or 0.0) * 2, 2),
@@ -52,7 +52,7 @@ def _serialize(duel: Duel, db: Session) -> dict:
     return data
 
 
-# ─────────────────────────── Lectura (usuarios) ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Lectura (usuarios) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.get("/duels/available")
 def available_duels(
     db: Session = Depends(get_db),
@@ -94,7 +94,7 @@ def get_duel(
         raise HTTPException(status_code=404, detail="Duelo no encontrado.")
     return _serialize(duel, db)
 
-# ────────────────────────────── Crear duelo ──────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Crear duelo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.post("/duels/create", status_code=201)
 def create_duel(
     payload: DuelCreate,
@@ -116,7 +116,7 @@ def create_duel(
     if not is_matchup and not is_morocha:
         payload.horse_opponent = payload.horse_creator
 
-    # 1. Validaciones de duplicidad según el tipo de duelo
+    # 1. Validaciones de duplicidad segÃºn el tipo de duelo
     if is_morocha:
         if not (payload.horse_creator_2 and payload.horse_opponent_2):
             raise HTTPException(
@@ -133,10 +133,10 @@ def create_duel(
         if len(set(selected_horses)) < 4:
             raise HTTPException(
                 status_code=400,
-                detail="Los 4 caballos seleccionados para MOROCHA deben ser distintos entre sí."
+                detail="Los 4 caballos seleccionados para MOROCHA deben ser distintos entre sÃ­."
             )
     elif is_matchup:
-        # ÚNICAMENTE exigimos que sean distintos si es un duelo 1vs1 MARCAS
+        # ÃšNICAMENTE exigimos que sean distintos si es un duelo 1vs1 MARCAS
         if payload.horse_creator == payload.horse_opponent:
             raise HTTPException(status_code=400, detail="Los caballos deben ser distintos.")
 
@@ -169,19 +169,19 @@ def create_duel(
     if (user.balance or 0.0) < stake:
         raise HTTPException(status_code=409, detail="Balance insuficiente para retener en escrow.")
 
-    # Retención de saldo en escrow
+    # RetenciÃ³n de saldo en escrow
     user.balance = round((user.balance or 0.0) - stake, 2)
 
     race_datetime = min(e.race_datetime for e in entries)
-    # Validación de tiempo límite para crear duelos
-    now = datetime.now(timezone.utc)
-    # Ensure race_datetime is timezone-aware UTC
-    if race_datetime.tzinfo is None:
-        race_datetime = race_datetime.replace(tzinfo=timezone.utc)
-    if now >= race_datetime - timedelta(minutes=1):
-        raise HTTPException(status_code=400, detail="El tiempo límite para crear o aceptar duelos en esta carrera ha expirado (1 minuto antes del inicio)")
+#     # ValidaciÃ³n de tiempo lÃ­mite para crear duelos
+#     now = datetime.now(timezone.utc)
+#     # Ensure race_datetime is timezone-aware UTC
+#     if race_datetime.tzinfo is None:
+#         race_datetime = race_datetime.replace(tzinfo=timezone.utc)
+#     if now >= race_datetime - timedelta(minutes=1):
+#         raise HTTPException(status_code=400, detail="El tiempo lÃ­mite para crear o aceptar duelos en esta carrera ha expirado (1 minuto antes del inicio)")
 
-    # 4. Instanciación y guardado del duelo
+    # 4. InstanciaciÃ³n y guardado del duelo
     duel = Duel(
         duel_type_id=duel_type.id,
         race_number=payload.race_number,
@@ -205,7 +205,7 @@ def create_duel(
     db.commit()
     db.refresh(duel)
     return _serialize(duel, db)
-# ────────────────────────────── Aceptar duelo ──────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Aceptar duelo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.post("/duels/{duel_id}/accept")
 def accept_duel(
     duel_id: int,
@@ -214,14 +214,14 @@ def accept_duel(
     user: User = Depends(get_current_user),
 ):
     """
-    Acepta un duelo OPEN igualando el stake (también retenido en escrow).
+    Acepta un duelo OPEN igualando el stake (tambiÃ©n retenido en escrow).
     El oponente queda fijado al caballo rival propuesto por el creador.
     """
     duel = db.get(Duel, duel_id)
     if duel is None:
         raise HTTPException(status_code=404, detail="Duelo no encontrado.")
     if duel.status != DUEL_OPEN:
-        raise HTTPException(status_code=409, detail="El duelo ya no está disponible.")
+        raise HTTPException(status_code=409, detail="El duelo ya no estÃ¡ disponible.")
     if duel.creator_id == user.id:
         raise HTTPException(status_code=400, detail="No puedes aceptar tu propio duelo.")
     if payload is not None and payload.horse_acceptor is not None:
@@ -243,7 +243,7 @@ def accept_duel(
     return _serialize(duel, db)
 
 
-# ─────────────────────── Cancelar duelo (solo OPEN) ───────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Cancelar duelo (solo OPEN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.post("/duels/{duel_id}/cancel")
 def cancel_duel(
     duel_id: int,
@@ -251,8 +251,8 @@ def cancel_duel(
     user: User = Depends(get_current_user),
 ):
     """
-    Cancela un duelo aún NO aceptado: reembolsa el escrow al creador y
-    elimina el registro (el catálogo de estados permanece OPEN/ACTIVE/RESOLVED).
+    Cancela un duelo aÃºn NO aceptado: reembolsa el escrow al creador y
+    elimina el registro (el catÃ¡logo de estados permanece OPEN/ACTIVE/RESOLVED).
     Solo puede el creador o el administrador.
     """
     duel = db.get(Duel, duel_id)
@@ -271,14 +271,14 @@ def cancel_duel(
     return {"detail": "Duelo cancelado y stake reembolsado.", "id": duel_id}
 
 
-# ─────────────────────── Resolución (únicamente admin) ───────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ ResoluciÃ³n (Ãºnicamente admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.get("/admin/duels")
 def admin_duels(
     status: Optional[str] = Query(default=None, description="OPEN | ACTIVE | RESOLVED"),
     db: Session = Depends(get_db),
     _admin=Depends(require_admin),
 ):
-    """Listado administrativo de duelos (para el módulo Resolver y auditoría)."""
+    """Listado administrativo de duelos (para el mÃ³dulo Resolver y auditorÃ­a)."""
     query = db.query(Duel)
     if status:
         query = query.filter(Duel.status == status.upper())
@@ -286,9 +286,9 @@ def admin_duels(
     return [_serialize(d, db) for d in duels]
 
 
-# ───────────────── Motor de resolución (helpers reutilizables) ─────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Motor de resoluciÃ³n (helpers reutilizables) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _resolve_refund(db: Session, duel: Duel, note: str) -> dict:
-    """Reembolsa el escrow completo a ambos participantes (sin comisión)."""
+    """Reembolsa el escrow completo a ambos participantes (sin comisiÃ³n)."""
     creator = db.get(User, duel.creator_id)
     acceptor = db.get(User, duel.acceptor_id) if duel.acceptor_id else None
     if creator is not None:
@@ -312,7 +312,7 @@ def _resolve_refund(db: Session, duel: Duel, note: str) -> dict:
 
 
 def _resolve_payout(db: Session, duel: Duel, winner_horse: int, note: str) -> dict:
-    """Abona el 95 % del pozo al ganador y retiene el 5 % de comisión (la casa)."""
+    """Abona el 95 % del pozo al ganador y retiene el 5 % de comisiÃ³n (la casa)."""
     winner_user_id = duel.creator_id if winner_horse == duel.horse_creator else duel.acceptor_id
     if winner_user_id is None:
         raise HTTPException(status_code=409, detail="El duelo no tiene oponente registrado.")
@@ -356,12 +356,12 @@ def resolve_duel_core(
     note: Optional[str] = None,
 ) -> dict:
     """
-    Lógica de resolución (reutilizable): valida el estado, aplica la regla del
-    tipo de duelo y, si la carrera tiene marcador oficial (1° al 5°), lo usa o
-    valida frente a la selección del administrador.
+    LÃ³gica de resoluciÃ³n (reutilizable): valida el estado, aplica la regla del
+    tipo de duelo y, si la carrera tiene marcador oficial (1Â° al 5Â°), lo usa o
+    valida frente a la selecciÃ³n del administrador.
 
-    Regla del marcador: un caballo fuera del top 5 está "fuera del marcador"
-    (perdedor); si ambos quedan fuera → reembolso total sin comisión.
+    Regla del marcador: un caballo fuera del top 5 estÃ¡ "fuera del marcador"
+    (perdedor); si ambos quedan fuera â†’ reembolso total sin comisiÃ³n.
     """
     if duel.status != DUEL_ACTIVE:
         raise HTTPException(
@@ -374,20 +374,20 @@ def resolve_duel_core(
     horses = (duel.horse_creator, duel.horse_opponent)
     positions = get_official_positions(db, duel.race_number)  # {} si no hay marcador
 
-    # ── Empate declarado → reembolso total, sin comisión ──
+    # â”€â”€ Empate declarado â†’ reembolso total, sin comisiÃ³n â”€â”€
     if rule == RULE_TIE:
         return _resolve_refund(
             db, duel, note or "Empate: reembolso total del escrow a ambos participantes."
         )
 
-    # ── Regla de marcador oficial: requiere posiciones 1°-5° ──
+    # â”€â”€ Regla de marcador oficial: requiere posiciones 1Â°-5Â° â”€â”€
     if rule == RULE_OFFICIAL:
         if not positions:
             raise HTTPException(
                 status_code=409,
                 detail=(
-                    f"La carrera {duel.race_number} no tiene posiciones oficiales (1° al 5°). "
-                    "Regístralas en «Resultados oficiales» antes de resolver."
+                    f"La carrera {duel.race_number} no tiene posiciones oficiales (1Â° al 5Â°). "
+                    "RegÃ­stralas en Â«Resultados oficialesÂ» antes de resolver."
                 ),
             )
         winner_horse, outcome_note = official_outcome(
@@ -399,14 +399,14 @@ def resolve_duel_core(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"El marcador oficial indica que gana el caballo N.º {winner_horse}; "
-                    f"no coincide con el indicado (N.º {requested})."
+                    f"El marcador oficial indica que gana el caballo N.Âº {winner_horse}; "
+                    f"no coincide con el indicado (N.Âº {requested})."
                 ),
             )
         return _resolve_payout(db, duel, winner_horse, note or outcome_note)
 
-    # Las reglas numéricas (LOWEST/HIGHEST) son sintéticas: no usan el marcador.
-    # ── Reglas deterministas numéricas ──
+    # Las reglas numÃ©ricas (LOWEST/HIGHEST) son sintÃ©ticas: no usan el marcador.
+    # â”€â”€ Reglas deterministas numÃ©ricas â”€â”€
     if rule == RULE_LOWEST:
         winner_horse = min(horses)
     elif rule == RULE_HIGHEST:
@@ -414,19 +414,19 @@ def resolve_duel_core(
     else:
         # MANUAL y reglas personalizadas no interpretadas por el motor.
         if positions:
-            # El marcador oficial manda: se valida la selección del admin.
+            # El marcador oficial manda: se valida la selecciÃ³n del admin.
             official_winner, outcome_note = official_outcome(
                 positions, duel.horse_creator, duel.horse_opponent
             )
             if official_winner is None:
-                # Ninguno clasificó en el top 5 → ambos "perdedores": reembolso.
+                # Ninguno clasificÃ³ en el top 5 â†’ ambos "perdedores": reembolso.
                 return _resolve_refund(db, duel, outcome_note)
             if requested is not None and requested != official_winner:
                 raise HTTPException(
                     status_code=409,
                     detail=(
-                        f"El marcador oficial indica que gana el caballo N.º {official_winner} "
-                        f"— {outcome_note} Tu selección (N.º {requested}) no coincide."
+                        f"El marcador oficial indica que gana el caballo N.Âº {official_winner} "
+                        f"â€” {outcome_note} Tu selecciÃ³n (N.Âº {requested}) no coincide."
                     ),
                 )
             winner_horse = official_winner
@@ -448,8 +448,8 @@ def resolve_duel_core(
         raise HTTPException(
             status_code=400,
             detail=(
-                f"La regla {rule} determina que gana el caballo N.º {winner_horse}; "
-                f"no coincide con el indicado (N.º {requested})."
+                f"La regla {rule} determina que gana el caballo N.Âº {winner_horse}; "
+                f"no coincide con el indicado (N.Âº {requested})."
             ),
         )
 
@@ -464,9 +464,9 @@ def resolve_duel(
     _admin=Depends(require_admin),
 ):
     """
-    Resuelve un duelo ACTIVO aplicando la regla lógica de su tipo de duelo —
-    usando o validando el marcador oficial (1° al 5°) cuando la carrera lo
-    tenga —: calcula el pozo (stake x 2), retiene el 5 % de comisión para la
+    Resuelve un duelo ACTIVO aplicando la regla lÃ³gica de su tipo de duelo â€”
+    usando o validando el marcador oficial (1Â° al 5Â°) cuando la carrera lo
+    tenga â€”: calcula el pozo (stake x 2), retiene el 5 % de comisiÃ³n para la
     casa y abona el 95 % restante al ganador.
     """
     duel = db.get(Duel, duel_id)
