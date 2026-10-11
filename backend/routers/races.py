@@ -37,9 +37,9 @@ from database import (
     get_db,
     official_outcome,
 )
-from ..parsers import EXPECTED_HEADER, parse_cartelera
-from ..schemas import OfficialResultsRequest
-from ..security import require_admin
+from parsers import EXPECTED_HEADER, parse_cartelera
+from schemas import OfficialResultsRequest
+from security import require_admin
 
 router = APIRouter(tags=["races"])
 

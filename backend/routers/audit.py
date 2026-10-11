@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..database import (
+from database import (
     DUEL_ACTIVE,
     DUEL_OPEN,
     DUEL_RESOLVED,
