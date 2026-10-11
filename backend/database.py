@@ -414,7 +414,7 @@ def seed_initial_data() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        from .security import hash_password
+        from security import hash_password
 
         if db.query(User).filter(User.username == DEFAULT_ADMIN_USERNAME).first() is None:
             db.add(
