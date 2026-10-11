@@ -23,7 +23,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Importación de routers y base de datos local del proyecto
 import database, security, schemas, parsers
-
+from routers import auth, audit, duel_types, duels, payments, races
 # Configuración de logging estructurado para producción
 LOGGING_CONFIG = {
     "version": 1,
